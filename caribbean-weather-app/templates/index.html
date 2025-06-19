@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Caribbean Weather Forecast</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container mt-4">
+    <h1 class="mb-4">Caribbean Weather Forecast</h1>
+    <div class="form-group">
+        <label for="citySelect">Select City:</label>
+        <select id="citySelect" class="form-control"></select>
+    </div>
+    <div id="forecast" class="mt-4"></div>
+</div>
+<script>
+    async function loadCities() {
+        const response = await fetch('/cities');
+        const cities = await response.json();
+        const select = document.getElementById('citySelect');
+        cities.forEach(city => {
+            let opt = document.createElement('option');
+            opt.value = `${city.lat},${city.lon}`;
+            opt.innerText = city.name;
+            select.appendChild(opt);
+        });
+        select.onchange = loadForecast;
+        loadForecast();
+    }
+
+    async function loadForecast() {
+        const [lat, lon] = document.getElementById('citySelect').value.split(',');
+        const response = await fetch(`/forecast?lat=${lat}&lon=${lon}`);
+        const data = await response.json();
+        renderForecast(data);
+    }
+
+    function renderForecast(data) {
+        if (!data.daily) {
+            document.getElementById('forecast').innerHTML = '<div class="alert alert-warning">No forecast data.</div>';
+            return;
+        }
+        let html = '<table class="table table-bordered mt-3"><thead><tr>';
+        html += '<th>Date</th><th>Min Temp (°C)</th><th>Max Temp (°C)</th><th>Precipitation (mm)</th>';
+        html += '<th>Max Wind (km/h)</th><th>Max UV Index</th><th>Weather</th></tr></thead><tbody>';
+        const d = data.daily;
+        for (let i = 0; i < d.time.length; i++) {
+            html += `<tr>
+                <td>${d.time[i]}</td>
+                <td>${d.temperature_2m_min[i]}</td>
+                <td>${d.temperature_2m_max[i]}</td>
+                <td>${d.precipitation_sum[i]}</td>
+                <td>${d.wind_speed_10m_max[i]}</td>
+                <td>${d.uv_index_max[i] || '-'}</td>
+                <td>${weatherCodeToText(d.weathercode[i])}</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        document.getElementById('forecast').innerHTML = html;
+    }
+
+    // Simple weather code mapping
+    function weatherCodeToText(code) {
+        const codes = {
+            0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+            45: "Fog", 48: "Depositing rime fog",
+            51: "Drizzle: Light", 53: "Drizzle: Moderate", 55: "Drizzle: Dense intensity",
+            61: "Rain: Slight", 63: "Rain: Moderate", 65: "Rain: Heavy",
+            71: "Snow fall: Slight", 73: "Snow fall: Moderate", 75: "Snow fall: Heavy",
+            95: "Thunderstorm: Slight or moderate"
+            // Add more if needed from API docs
+        };
+        return codes[code] || "Unknown";
+    }
+
+    loadCities();
+</script>
+</body>
+</html>
